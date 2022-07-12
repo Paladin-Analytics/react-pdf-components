@@ -81,7 +81,7 @@ export function App() {
   const handleLinkPress = (label: string) => {
     setViewLabel(label);
   };
-// test
+  
   return (
     <Router>
       <div className={styles.app}>

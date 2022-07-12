@@ -11,10 +11,13 @@ env:
 jobs:
   deploy-app-preview:
     runs-on: ubuntu-latest
+    env:
+      deployChannel: rpc-${{ github.event.number }}
     steps:
-      - name: Checkout Code
+      - name: checkout Code
         uses: actions/checkout@v2
-      - name: Use Node.js 16.4.0
+
+      - name: use Node.js 16.4.0
         uses: actions/setup-node@v1
         with:
           node-version: 16.4.0
@@ -22,8 +25,8 @@ jobs:
       - name: config private registry
         run: npm config set '@paladin-analytics:registry' "https://npm.pkg.github.com"
       - run: npm config set '//npm.pkg.github.com/:_authToken' "${GITHUB_TOKEN}"
-      # caching deps
 
+      # caching deps
       - uses: actions/cache@v2
         with:
           path: ~/.npm
@@ -40,5 +43,26 @@ jobs:
 
       - name: building app and lib
         run: npm run build app
+
       - name: deploy for preview
-        run: npm run firebase:deploy:preview -- "rpc-${PR_NUMBER}" -P default --token $FIREBASE_TOKEN
+        run: npm run firebase:deploy:preview -- "$deployChannel" -P default --token $FIREBASE_TOKEN
+
+      - run: echo "$(firebase hosting:channel:open $deployChannel)"
+
+      - name: format deploy URL
+        uses: JungWinter/split@v2.0.0
+        with:
+          msg: "$(firebase hosting:channel:open $deployChannel)"
+
+      - name: set deploy URL
+        run: echo "DEPLOY_URL=${{ steps.split.outputs._1 }}" >> $GITHUB_ENV
+      - run: echo "DEPLOY_URL_0=${{ steps.split.outputs._0 }}" >> $GITHUB_ENV
+
+      - name: comment preview URL on PR
+        uses: thollander/actions-comment-pull-request@v1
+        with:
+          message: |
+            Deployed to preview channel > [${{ env.DEPLOY_URL }}](${{ env.DEPLOY_URL }})
+          comment_includes: 'Deployed'
+          reactions: hooray
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
